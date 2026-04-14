@@ -1,0 +1,24 @@
+# Python cache and local environment artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Test documents and generated office files
+*.ppt
+*.pptx
+*.doc
+*.docx
+*.pdf
+
+# Test images and other binary assets
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.webp
+*.svg
+*.tif
+*.tiff
