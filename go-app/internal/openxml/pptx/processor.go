@@ -182,9 +182,15 @@ func readSlideFilesInOrder(tempDir string) ([]string, error) {
 	if err := presentationDoc.ReadFromFile(presentationPath); err != nil {
 		return readSlideFilesFallback(tempDir), nil
 	}
+	if presentationDoc.Root() == nil {
+		return readSlideFilesFallback(tempDir), nil
+	}
 
 	relsDoc := etree.NewDocument()
 	if err := relsDoc.ReadFromFile(relsPath); err != nil {
+		return readSlideFilesFallback(tempDir), nil
+	}
+	if relsDoc.Root() == nil {
 		return readSlideFilesFallback(tempDir), nil
 	}
 
