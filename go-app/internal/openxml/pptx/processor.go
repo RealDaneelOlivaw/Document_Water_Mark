@@ -211,12 +211,8 @@ func readSlideFilesInOrder(tempDir string) ([]string, error) {
 	}
 
 	var ordered []string
-	root := presentationDoc.Root()
-	for _, sldID := range root.FindElements(".//*") {
-		if common.LocalName(sldID.Tag) != "sldId" {
-			continue
-		}
-		relID, ok := common.GetAttr(sldID, "r:id", "id")
+	for _, sldID := range findElementsByLocalName(presentationDoc.Root(), "sldId") {
+		relID, ok := common.GetAttr(sldID, "r:id")
 		if !ok {
 			continue
 		}
@@ -234,6 +230,24 @@ func readSlideFilesInOrder(tempDir string) ([]string, error) {
 		return readSlideFilesFallback(tempDir), nil
 	}
 	return ordered, nil
+}
+
+func findElementsByLocalName(root *etree.Element, localName string) []*etree.Element {
+	if root == nil {
+		return nil
+	}
+	var found []*etree.Element
+	var walk func(*etree.Element)
+	walk = func(element *etree.Element) {
+		if common.LocalName(element.Tag) == localName {
+			found = append(found, element)
+		}
+		for _, child := range element.ChildElements() {
+			walk(child)
+		}
+	}
+	walk(root)
+	return found
 }
 
 func readSlideFilesFallback(tempDir string) []string {

@@ -121,6 +121,11 @@ func LocalName(tag string) string {
 	if idx := strings.Index(tag, ":"); idx >= 0 {
 		return tag[idx+1:]
 	}
+	if strings.HasPrefix(tag, "{") {
+		if idx := strings.LastIndex(tag, "}"); idx >= 0 && idx+1 < len(tag) {
+			return tag[idx+1:]
+		}
+	}
 	return tag
 }
 
