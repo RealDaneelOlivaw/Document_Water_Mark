@@ -36,6 +36,8 @@ type App struct {
 	marginXEdit   *walk.LineEdit
 	marginYEdit   *walk.LineEdit
 	minAreaEdit   *walk.LineEdit
+	excludeCheck  *walk.CheckBox
+	excludeEdit   *walk.LineEdit
 
 	startButton *walk.PushButton
 
@@ -211,6 +213,24 @@ func (a *App) create() error {
 
 											declarative.Label{Text: "\u5c0f\u56fe\u8fc7\u6ee4(%)", MinSize: labelMin},
 											declarative.LineEdit{AssignTo: &a.minAreaEdit, Text: strconv.Itoa(config.DefaultMinAreaPct), MinSize: fieldMin},
+
+											declarative.Label{Text: "\u6392\u9664\u9875\u7801", MinSize: labelMin},
+											declarative.Composite{
+												Layout: declarative.HBox{MarginsZero: true, Spacing: 6},
+												Children: []declarative.Widget{
+													declarative.CheckBox{
+														AssignTo:         &a.excludeCheck,
+														Text:             "\u542f\u7528",
+														Checked:          false,
+														OnCheckedChanged: a.syncExcludePagesControl,
+													},
+													declarative.LineEdit{
+														AssignTo: &a.excludeEdit,
+														Text:     "1",
+														MinSize:  fieldMin,
+													},
+												},
+											},
 										},
 									},
 								},
@@ -234,6 +254,7 @@ func (a *App) create() error {
 		return err
 	}
 	a.finalizeLayout()
+	a.syncExcludePagesControl()
 	return nil
 }
 
@@ -565,11 +586,27 @@ func (a *App) buildConfig() (config.WatermarkConfig, error) {
 	if cfg.MinAreaPct, err = strconv.Atoi(strings.TrimSpace(a.minAreaEdit.Text())); err != nil {
 		return cfg, fmt.Errorf("\u5c0f\u56fe\u8fc7\u6ee4\u5fc5\u987b\u662f\u6574\u6570")
 	}
+	cfg.ExcludePagesEnabled = a.excludeCheck != nil && a.excludeCheck.Checked()
+	if cfg.ExcludePagesEnabled {
+		pages, parseErr := config.ParseExcludePages(strings.TrimSpace(a.excludeEdit.Text()))
+		if parseErr != nil {
+			return cfg, fmt.Errorf("\u6392\u9664\u9875\u7801\u683c\u5f0f\u9519\u8bef: %w", parseErr)
+		}
+		cfg.ExcludePages = pages
+	}
 	cfg.Position = strings.TrimSpace(a.positionEdit.Text())
 	if err := cfg.Validate(); err != nil {
 		return cfg, err
 	}
 	return cfg, nil
+}
+
+func (a *App) syncExcludePagesControl() {
+	if a.excludeEdit == nil {
+		return
+	}
+	enabled := a.excludeCheck != nil && a.excludeCheck.Checked()
+	a.excludeEdit.SetEnabled(enabled)
 }
 
 func resolveColor(label string) string {
