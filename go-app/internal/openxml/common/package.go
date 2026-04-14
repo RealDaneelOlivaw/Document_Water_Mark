@@ -138,9 +138,9 @@ func AttrName(attr etree.Attr) string {
 
 func GetAttr(element *etree.Element, preferred string, fallbacks ...string) (string, bool) {
 	targets := append([]string{preferred}, fallbacks...)
-	for _, attr := range element.Attr {
-		current := AttrName(attr)
-		for _, target := range targets {
+	for _, target := range targets {
+		for _, attr := range element.Attr {
+			current := AttrName(attr)
 			if current == target || attr.Key == target {
 				return attr.Value, true
 			}
