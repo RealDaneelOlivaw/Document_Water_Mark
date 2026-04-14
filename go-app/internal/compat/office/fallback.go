@@ -140,6 +140,7 @@ func NormalizeDOCX(inputPath string) (string, func(), error) {
 	targetPath := filepath.Join(tempDir, filepath.Base(strings.TrimSuffix(inputPath, filepath.Ext(inputPath)))+"_normalized.docx")
 
 	cmd := exec.Command("powershell", "-NoProfile", "-STA", "-ExecutionPolicy", "Bypass", "-Command", normalizeScript)
+	applyNoWindow(cmd)
 	cmd.Env = append(os.Environ(),
 		"PPT_WATERMARK_DOCX_SOURCE="+inputPath,
 		"PPT_WATERMARK_DOCX_TARGET="+targetPath,
@@ -158,6 +159,7 @@ func ExtractDOCXBodyImagePages(inputPath, markerPrefix string) (int, map[string]
 	}
 
 	cmd := exec.Command("powershell", "-NoProfile", "-STA", "-ExecutionPolicy", "Bypass", "-Command", pageMapScript)
+	applyNoWindow(cmd)
 	cmd.Env = append(os.Environ(),
 		"PPT_WATERMARK_DOCX_SOURCE="+inputPath,
 		"PPT_WATERMARK_MARKER_PREFIX="+markerPrefix,
