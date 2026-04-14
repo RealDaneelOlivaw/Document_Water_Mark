@@ -58,6 +58,7 @@ $attempts = @(
 $failures = New-Object System.Collections.Generic.List[string]
 $wdMainTextStory = 1
 $wdStatisticPages = 2
+$wdActiveEndPageNumber = 3
 $wdActiveEndAdjustedPageNumber = 1
 
 foreach ($attempt in $attempts) {
@@ -68,6 +69,7 @@ foreach ($attempt in $attempts) {
         $app.Visible = $false
         if ($app.PSObject.Properties.Name -contains 'DisplayAlerts') { $app.DisplayAlerts = 0 }
         $doc = $app.Documents.Open($source, $false, $true)
+        try { $doc.Repaginate() } catch { }
 
         $totalPages = 0
         try { $totalPages = [int]$doc.ComputeStatistics($wdStatisticPages) } catch { $totalPages = 0 }
@@ -86,7 +88,10 @@ foreach ($attempt in $attempts) {
                 continue
             }
             $page = 0
-            try { $page = [int]$inlineShape.Range.Information($wdActiveEndAdjustedPageNumber) } catch { $page = 0 }
+            try { $page = [int]$inlineShape.Range.Information($wdActiveEndPageNumber) } catch { $page = 0 }
+            if ($page -le 0) {
+                try { $page = [int]$inlineShape.Range.Information($wdActiveEndAdjustedPageNumber) } catch { $page = 0 }
+            }
             Write-Output ('PAGE|' + $marker + '|' + $page)
         }
 
@@ -103,7 +108,10 @@ foreach ($attempt in $attempts) {
                 continue
             }
             $page = 0
-            try { $page = [int]$shape.Anchor.Information($wdActiveEndAdjustedPageNumber) } catch { $page = 0 }
+            try { $page = [int]$shape.Anchor.Information($wdActiveEndPageNumber) } catch { $page = 0 }
+            if ($page -le 0) {
+                try { $page = [int]$shape.Anchor.Information($wdActiveEndAdjustedPageNumber) } catch { $page = 0 }
+            }
             Write-Output ('PAGE|' + $marker + '|' + $page)
         }
 
