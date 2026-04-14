@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs cat:*)",
+      "Bash(go build:*)",
+      "Bash(cmd.exe /c \"where go\")",
+      "Bash(cmd.exe /c \"cd /d D:\\\\Python_Program_KJZ\\\\Document_WaterMark\\\\go-app && go build ./... 2>&1\")",
+      "Bash(cmd.exe /c \"powershell.exe -NoProfile -ExecutionPolicy Bypass -File D:\\\\Python_Program_KJZ\\\\Document_WaterMark\\\\go-app\\\\build.ps1 2>&1\")",
+      "Bash(cmd.exe /c \"powershell.exe -NoProfile -ExecutionPolicy Bypass -File \\\\\"D:\\\\Python_Program_KJZ\\\\Document_WaterMark\\\\go-app\\\\build.ps1\\\\\"\")",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(cmd.exe /c \"dir D:\\\\Python_Program_KJZ\\\\Document_WaterMark\\\\dist\\\\watermark-gui.exe\")",
+      "Bash(powershell.exe -NoProfile -Command \"Get-Item 'D:\\\\Python_Program_KJZ\\\\Document_WaterMark\\\\dist\\\\watermark-gui.exe' | Select-Object FullName, Length, LastWriteTime\")",
+      "Bash(powershell.exe -NoProfile -Command \"Get-Item 'D:\\\\Python_Program_KJZ\\\\Document_WaterMark\\\\dist\\\\watermark-gui.exe' | Select-Object Length, LastWriteTime\")",
+      "Bash(powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"& 'D:\\\\Python_Program_KJZ\\\\Document_WaterMark\\\\go-app\\\\build.ps1'\")",
+      "Bash(powershell.exe -NoProfile -Command \"Get-Command go -ErrorAction SilentlyContinue | Select-Object Source; Get-ChildItem 'C:\\\\Program Files\\\\Go' -ErrorAction SilentlyContinue; Get-ChildItem 'C:\\\\Go' -ErrorAction SilentlyContinue; \\(Get-ChildItem 'C:\\\\Users' -Filter 'go.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 5\\).FullName\")",
+      "Bash(powershell.exe -NoProfile -Command 'Get-Command go -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source')",
+      "Bash(powershell.exe -NoProfile -Command '[Environment]::GetEnvironmentVariable\\(\"GOROOT\",\"Machine\"\\); [Environment]::GetEnvironmentVariable\\(\"GOROOT\",\"User\"\\); [Environment]::GetEnvironmentVariable\\(\"GOPATH\",\"User\"\\)')",
+      "Bash(powershell.exe -NoProfile -Command 'Get-ChildItem -Path \"C:\\\\Program Files\" -Filter go.exe -Recurse -Depth 3 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName; Get-ChildItem -Path \"C:\\\\Users\\\\KejieZhang\\\\AppData\\\\Local\" -Filter go.exe -Recurse -Depth 4 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName')",
+      "Bash(powershell.exe -NoProfile -Command 'Get-ChildItem \"C:\\\\Users\\\\KejieZhang\\\\AppData\\\\Local\\\\Programs\" -ErrorAction SilentlyContinue | Select-Object Name')",
+      "Bash(powershell.exe -NoProfile -Command 'Get-Item \"D:\\\\Python_Program_KJZ\\\\Document_WaterMark\\\\dist\\\\watermark-gui.exe\" | Select-Object Length, LastWriteTime')",
+      "Bash(powershell.exe -NoProfile -Command '& \"C:\\\\Program Files\\\\Go\\\\bin\\\\go.exe\" mod vendor')",
+      "Bash(powershell.exe -NoProfile -Command 'Get-Command upx -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source; Get-ChildItem \"$env:LOCALAPPDATA\\\\Microsoft\\\\WinGet\\\\Packages\" -Recurse -Filter upx.exe -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName')",
+      "Bash(powershell.exe -NoProfile -Command 'winget install upx.upx --accept-package-agreements --accept-source-agreements')",
+      "Bash(powershell.exe -NoProfile -Command '$upx = Get-ChildItem \"$env:LOCALAPPDATA\\\\Microsoft\\\\WinGet\\\\Packages\" -Recurse -Filter upx.exe -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName; & $upx --best --lzma \"D:\\\\Python_Program_KJZ\\\\Document_WaterMark\\\\dist\\\\watermark-gui.exe\"')",
+      "Bash(powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"D:\\\\Python_Program_KJZ\\\\Document_WaterMark\\\\go-app\\\\build.ps1\")",
+      "Bash(powershell.exe -NoProfile -ExecutionPolicy Bypass -Command 'Push-Location \"D:\\\\Python_Program_KJZ\\\\Document_WaterMark\\\\go-app\"; & \"C:\\\\Program Files\\\\Go\\\\bin\\\\go.exe\" build -mod=vendor -trimpath -ldflags \"-s -w -H=windowsgui\" -o \"..\\\\dist\\\\watermark-gui.exe\" .\\\\cmd\\\\watermark-gui; Pop-Location')",
+      "Bash(powershell.exe -NoProfile -Command '$upx = Get-ChildItem \"$env:LOCALAPPDATA\\\\Microsoft\\\\WinGet\\\\Packages\" -Recurse -Filter upx.exe -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName; & $upx --best --lzma \"D:\\\\Python_Program_KJZ\\\\Document_WaterMark\\\\dist\\\\watermark-gui.exe\"; Get-Item \"D:\\\\Python_Program_KJZ\\\\Document_WaterMark\\\\dist\\\\watermark-gui.exe\" | Select-Object Length, LastWriteTime')",
+      "Bash(powershell.exe -NoProfile -ExecutionPolicy Bypass -Command 'Push-Location \"D:\\\\Python_Program_KJZ\\\\Document_WaterMark\\\\go-app\"; & \"C:\\\\Program Files\\\\Go\\\\bin\\\\go.exe\" build -mod=vendor -trimpath -ldflags \"-s -w -H=windowsgui\" -o \"..\\\\dist\\\\watermark-gui.exe\" .\\\\cmd\\\\watermark-gui; $upx = Get-ChildItem \"$env:LOCALAPPDATA\\\\Microsoft\\\\WinGet\\\\Packages\" -Recurse -Filter upx.exe -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName; & $upx --best --lzma \"..\\\\dist\\\\watermark-gui.exe\"; Get-Item \"..\\\\dist\\\\watermark-gui.exe\" | Select-Object Length, LastWriteTime; Pop-Location')"
+    ]
+  }
+}

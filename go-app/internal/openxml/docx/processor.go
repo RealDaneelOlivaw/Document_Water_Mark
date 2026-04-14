@@ -1,6 +1,7 @@
 package docx
 
 import (
+	"archive/zip"
 	"bytes"
 	"fmt"
 	"image"
@@ -57,7 +58,7 @@ func (p *Processor) ProcessFile(inputPath, outputPath string, cfg config.Waterma
 
 	resolvedInput := inputPath
 	cleanup := func() {}
-	if _, err := unzipCheck(inputPath); err != nil {
+	if err := unzipCheck(inputPath); err != nil {
 		normalized, clean, normalizeErr := office.NormalizeDOCX(inputPath)
 		if normalizeErr != nil {
 			return common.ProcessStats{}, normalizeErr
@@ -207,13 +208,12 @@ func (p *Processor) ProcessFile(inputPath, outputPath string, cfg config.Waterma
 	return stats, nil
 }
 
-func unzipCheck(inputPath string) (string, error) {
-	tempDir, err := common.UnzipToTemp(inputPath, "docx_check_")
+func unzipCheck(inputPath string) error {
+	r, err := zip.OpenReader(inputPath)
 	if err != nil {
-		return "", err
+		return err
 	}
-	_ = os.RemoveAll(tempDir)
-	return tempDir, nil
+	return r.Close()
 }
 
 func collectInstances(root *etree.Element, ownerXML string) []imageInstance {

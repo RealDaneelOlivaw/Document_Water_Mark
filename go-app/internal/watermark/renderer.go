@@ -22,7 +22,7 @@ func (r *Renderer) CreateOverlay(cfg config.WatermarkConfig, width, height int) 
 		return r.createTiledOverlay(cfg, width, height)
 	}
 	overlay := image.NewNRGBA(image.Rect(0, 0, width, height))
-	mark, err := r.CreateWatermarkImage(cfg)
+	mark, _, _, err := r.CreateWatermarkImage(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -32,10 +32,15 @@ func (r *Renderer) CreateOverlay(cfg config.WatermarkConfig, width, height int) 
 	return overlay, nil
 }
 
-func (r *Renderer) CreateWatermarkImage(cfg config.WatermarkConfig) (*image.NRGBA, error) {
+// CreateWatermarkImage renders a single watermark mark and returns the image
+// together with the pre-rotation dimensions of the text block. The
+// pre-rotation size is useful for tiling: it lets the caller compute a step
+// that allows rotated marks to interleave instead of being spaced by the much
+// larger axis-aligned bounding box.
+func (r *Renderer) CreateWatermarkImage(cfg config.WatermarkConfig) (mark *image.NRGBA, preRotateW, preRotateH int, err error) {
 	face, err := LoadFace(cfg.FontName, float64(cfg.FontSizePt))
 	if err != nil {
-		return nil, err
+		return nil, 0, 0, err
 	}
 
 	lines := strings.Split(strings.ReplaceAll(cfg.Text, "\r\n", "\n"), "\n")
@@ -77,6 +82,9 @@ func (r *Renderer) CreateWatermarkImage(cfg config.WatermarkConfig) (*image.NRGB
 		baseline += lineHeight + lineSpacing
 	}
 
+	preRotateW = canvas.Bounds().Dx()
+	preRotateH = canvas.Bounds().Dy()
+
 	if cfg.Rotation != 0 {
 		canvas = imaging.Rotate(canvas, cfg.Rotation, color.NRGBA{0, 0, 0, 0})
 		border := maxInt(int(math.Round(float64(cfg.FontSizePt)*0.18)), 6)
@@ -84,20 +92,39 @@ func (r *Renderer) CreateWatermarkImage(cfg config.WatermarkConfig) (*image.NRGB
 		draw.Draw(withBorder, image.Rect(border, border, border+canvas.Bounds().Dx(), border+canvas.Bounds().Dy()), canvas, image.Point{}, draw.Over)
 		canvas = withBorder
 	}
-	return canvas, nil
+	return canvas, preRotateW, preRotateH, nil
 }
 
 func (r *Renderer) createTiledOverlay(cfg config.WatermarkConfig, width, height int) (*image.NRGBA, error) {
 	overlay := image.NewNRGBA(image.Rect(0, 0, width, height))
-	mark, err := r.CreateWatermarkImage(cfg)
+	mark, _, preRotateH, err := r.CreateWatermarkImage(cfg)
 	if err != nil {
 		return nil, err
 	}
 	bounds := visibleBounds(mark)
 	visibleWidth := maxInt(bounds.Dx(), 1)
 	visibleHeight := maxInt(bounds.Dy(), 1)
+
+	// Horizontal step uses the visible (AABB) width so marks in the same
+	// row never overlap.
 	stepX := maxInt(int(math.Round(float64(visibleWidth)*(1.0+cfg.GapXRatio))), 1)
+
+	// Vertical step: for rotated text the AABB height is much larger than
+	// the text strip thickness, producing excessive visual gaps. We compute
+	// the step so the *perpendicular* gap between text stripes matches the
+	// configured ratio: stepY = preRotateH * (1+gap) / |cos(θ)|.
+	// For near-90° angles cos→0, so we cap at the AABB-based step.
 	stepY := maxInt(int(math.Round(float64(visibleHeight)*(1.0+cfg.GapYRatio))), 1)
+	if cfg.Rotation != 0 {
+		rotRad := cfg.Rotation * math.Pi / 180.0
+		cosR := math.Abs(math.Cos(rotRad))
+		if cosR > 0.1 {
+			corrected := float64(preRotateH) * (1.0 + cfg.GapYRatio) / cosR
+			aabbBased := float64(visibleHeight) * (1.0 + cfg.GapYRatio)
+			stepY = maxInt(int(math.Round(math.Min(corrected, aabbBased))), 1)
+		}
+	}
+
 	startX := cfg.MarginXPt - bounds.Min.X
 	startY := cfg.MarginYPt - bounds.Min.Y
 

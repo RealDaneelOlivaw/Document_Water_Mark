@@ -10,17 +10,17 @@ import (
 )
 
 const (
-	DefaultText       = "\u8d85\u5353\u822a\u79d1 \u5e7f\u5dde\u7814\u7a76\u9662"
-	DefaultFontName   = "\u5fae\u8f6f\u96c5\u9ed1"
+	DefaultText       = "超卓航科广州研究院"
+	DefaultFontName   = "微软雅黑"
 	DefaultFontSizePt = 12
-	DefaultOpacity    = 10
+	DefaultOpacity    = 6
 	DefaultColor      = "#000000"
-	DefaultRotation   = 30.0
+	DefaultRotation   = 0.0
 	DefaultPosition   = "tile"
-	DefaultGapXRatio  = 0.1
-	DefaultGapYRatio  = 0.05
-	DefaultMarginXPt  = 1
-	DefaultMarginYPt  = 1
+	DefaultGapXRatio  = 0.2
+	DefaultGapYRatio  = 1.5
+	DefaultMarginXPt  = 2
+	DefaultMarginYPt  = 2
 	DefaultMinAreaPct = 3
 )
 

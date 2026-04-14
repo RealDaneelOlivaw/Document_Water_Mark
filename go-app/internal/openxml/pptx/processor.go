@@ -132,7 +132,7 @@ func (p *Processor) ProcessFile(inputPath, outputPath string, cfg config.Waterma
 				continue
 			}
 			format := common.DetectFormat(mediaPath, sourceBlob)
-			cfgScaled, renderKey, widthPx, heightPx, err := buildScaledInstanceConfig(cfg, mediaPath, sourceBlob, format, instance.widthEMU, instance.heightEMU)
+			cfgScaled, renderKey, widthPx, heightPx, err := buildScaledInstanceConfig(cfg, sourceBlob, format, instance.widthEMU, instance.heightEMU)
 			if err != nil {
 				stats.SkippedImages++
 				continue
@@ -399,7 +399,7 @@ func readSlideSize(presentationPath string) (int, int) {
 	return 0, 0
 }
 
-func buildScaledInstanceConfig(cfg config.WatermarkConfig, mediaPath string, sourceBlob []byte, format string, displayWidthEMU, displayHeightEMU int) (config.WatermarkConfig, string, int, int, error) {
+func buildScaledInstanceConfig(cfg config.WatermarkConfig, sourceBlob []byte, format string, displayWidthEMU, displayHeightEMU int) (config.WatermarkConfig, string, int, int, error) {
 	cfgInfo, _, err := image.DecodeConfig(bytes.NewReader(sourceBlob))
 	if err != nil {
 		return config.WatermarkConfig{}, "", 0, 0, err

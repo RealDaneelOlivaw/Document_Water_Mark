@@ -75,22 +75,18 @@ func (a *App) create() error {
 
 	mw := declarative.MainWindow{
 		AssignTo: &a.mainWindow,
-		Title:    "\u6587\u6863\u56fe\u7247\u6c34\u5370\u5de5\u5177 V1.0",
+		Title:    "\u6587\u6863\u56fe\u7247\u6c34\u5370\u5de5\u5177 V1.0 - Developed by Kejie Zhang, with assistance from Claude.",
 		Size:     declarative.Size{Width: 760, Height: 610},
 		MinSize:  declarative.Size{Width: 700, Height: 560},
 		Layout:   declarative.VBox{Margins: declarative.Margins{Left: 10, Top: 10, Right: 10, Bottom: 10}, Spacing: 8},
 		Children: []declarative.Widget{
 			declarative.Composite{
-				Layout: declarative.HBox{MarginsZero: true},
+				Alignment: declarative.AlignHNearVNear,
+				Layout:    declarative.HBox{MarginsZero: true, Spacing: 4, Alignment: declarative.AlignHNearVNear},
 				Children: []declarative.Widget{
 					declarative.Label{
-						Text: "\u6587\u6863\u56fe\u7247\u6c34\u5370\u5de5\u5177 V1.0",
+						Text: "文档图片水印工具V1.0",
 						Font: declarative.Font{Family: "Microsoft YaHei UI", PointSize: 12, Bold: true},
-					},
-					declarative.HSpacer{},
-					declarative.Label{
-						Text: "Developed by Kejie Zhang, with assistance from Claude.",
-						Font: declarative.Font{Family: "Segoe UI", PointSize: 8},
 					},
 				},
 			},
@@ -253,9 +249,27 @@ func (a *App) create() error {
 	if err := mw.Create(); err != nil {
 		return err
 	}
+	a.applyWindowIcon()
 	a.finalizeLayout()
 	a.syncExcludePagesControl()
 	return nil
+}
+
+func (a *App) applyWindowIcon() {
+	if a.mainWindow == nil {
+		return
+	}
+
+	if exePath, err := os.Executable(); err == nil {
+		if icon, err := walk.NewIconExtractedFromFileWithSize(exePath, 0, 256); err == nil {
+			_ = a.mainWindow.SetIcon(icon)
+			return
+		}
+	}
+
+	if icon, err := walk.NewIconFromResourceId(7); err == nil {
+		_ = a.mainWindow.SetIcon(icon)
+	}
 }
 
 func (a *App) finalizeLayout() {

@@ -2,6 +2,7 @@ package common
 
 import (
 	"archive/zip"
+	"fmt"
 	"io"
 	"os"
 	"path"
@@ -24,8 +25,13 @@ func UnzipToTemp(inputPath, prefix string) (string, error) {
 	}
 	defer reader.Close()
 
+	tempDirClean := filepath.Clean(tempDir) + string(os.PathSeparator)
 	for _, file := range reader.File {
 		targetPath := filepath.Join(tempDir, filepath.FromSlash(file.Name))
+		if !strings.HasPrefix(filepath.Clean(targetPath)+string(os.PathSeparator), tempDirClean) {
+			_ = os.RemoveAll(tempDir)
+			return "", fmt.Errorf("zip entry %q would escape extraction directory", file.Name)
+		}
 		if file.FileInfo().IsDir() {
 			if err := os.MkdirAll(targetPath, 0o755); err != nil {
 				_ = os.RemoveAll(tempDir)
