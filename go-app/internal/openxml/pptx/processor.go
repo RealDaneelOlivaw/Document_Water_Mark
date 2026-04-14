@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -65,29 +66,46 @@ func (p *Processor) ProcessFile(inputPath, outputPath string, cfg config.Waterma
 	renderCache := map[string][]byte{}
 	stats := common.ProcessStats{}
 
-	slideFiles, err := filepath.Glob(filepath.Join(tempDir, "ppt", "slides", "slide*.xml"))
+	slideFiles, err := readSlideFilesInOrder(tempDir)
 	if err != nil {
 		return stats, err
 	}
+	if cfg.ExcludePagesEnabled {
+		if err := config.ValidateExcludePagesAgainstTotal(cfg.ExcludePages, len(slideFiles)); err != nil {
+			return stats, err
+		}
+	}
+	excludePages := config.BuildExcludePageSet(cfg.ExcludePagesEnabled, cfg.ExcludePages)
 
-	for _, slideFile := range slideFiles {
+	for slideIndex, slideFile := range slideFiles {
+		pageNumber := slideIndex + 1
 		ownerXML := filepath.ToSlash(strings.TrimPrefix(slideFile, tempDir+string(os.PathSeparator)))
 		relsPath := filepath.Join(tempDir, "ppt", "slides", "_rels", filepath.Base(slideFile)+".rels")
-		if _, err := os.Stat(relsPath); err != nil {
-			continue
-		}
 
 		xmlDoc := etree.NewDocument()
 		if err := xmlDoc.ReadFromFile(slideFile); err != nil {
 			return stats, err
 		}
+		instances := collectSlideInstances(xmlDoc.Root(), ownerXML, filepath.ToSlash(strings.TrimPrefix(relsPath, tempDir+string(os.PathSeparator))))
+		if _, excluded := excludePages[pageNumber]; excluded {
+			stats.TotalImages += len(instances)
+			stats.SkippedImages += len(instances)
+			continue
+		}
+
+		if _, err := os.Stat(relsPath); err != nil {
+			stats.TotalImages += len(instances)
+			stats.SkippedImages += len(instances)
+			continue
+		}
+
 		relDoc, relRoot, relByID, err := loadRelationships(relsPath)
 		if err != nil {
 			return stats, err
 		}
 		ctx := relContext{doc: relDoc, root: relRoot, path: relsPath, ownerXML: ownerXML, byID: relByID}
 
-		for _, instance := range collectSlideInstances(xmlDoc.Root(), ownerXML, filepath.ToSlash(strings.TrimPrefix(relsPath, tempDir+string(os.PathSeparator)))) {
+		for _, instance := range instances {
 			stats.TotalImages++
 			if cfg.MinAreaPct > 0 && slideArea > 0 && instance.sizeIsKnown {
 				pct := (float64(instance.widthEMU*instance.heightEMU) / float64(slideArea)) * 100.0
@@ -154,6 +172,79 @@ func (p *Processor) ProcessFile(inputPath, outputPath string, cfg config.Waterma
 		return stats, err
 	}
 	return stats, nil
+}
+
+func readSlideFilesInOrder(tempDir string) ([]string, error) {
+	presentationPath := filepath.Join(tempDir, "ppt", "presentation.xml")
+	relsPath := filepath.Join(tempDir, "ppt", "_rels", "presentation.xml.rels")
+
+	presentationDoc := etree.NewDocument()
+	if err := presentationDoc.ReadFromFile(presentationPath); err != nil {
+		return readSlideFilesFallback(tempDir), nil
+	}
+
+	relsDoc := etree.NewDocument()
+	if err := relsDoc.ReadFromFile(relsPath); err != nil {
+		return readSlideFilesFallback(tempDir), nil
+	}
+
+	relTargets := map[string]string{}
+	for _, rel := range relsDoc.Root().ChildElements() {
+		if common.LocalName(rel.Tag) != "Relationship" {
+			continue
+		}
+		relType, _ := common.GetAttr(rel, "Type")
+		if !strings.HasSuffix(strings.ToLower(relType), "/slide") {
+			continue
+		}
+		relID, okID := common.GetAttr(rel, "Id")
+		target, okTarget := common.GetAttr(rel, "Target")
+		if okID && okTarget {
+			relTargets[relID] = target
+		}
+	}
+
+	var ordered []string
+	root := presentationDoc.Root()
+	for _, sldID := range root.FindElements(".//*") {
+		if common.LocalName(sldID.Tag) != "sldId" {
+			continue
+		}
+		relID, ok := common.GetAttr(sldID, "r:id", "id")
+		if !ok {
+			continue
+		}
+		target, ok := relTargets[relID]
+		if !ok {
+			continue
+		}
+		relPath := common.ResolveTarget("ppt/presentation.xml", target)
+		slidePath := filepath.Join(tempDir, filepath.FromSlash(relPath))
+		if _, err := os.Stat(slidePath); err == nil {
+			ordered = append(ordered, slidePath)
+		}
+	}
+	if len(ordered) == 0 {
+		return readSlideFilesFallback(tempDir), nil
+	}
+	return ordered, nil
+}
+
+func readSlideFilesFallback(tempDir string) []string {
+	slideFiles, _ := filepath.Glob(filepath.Join(tempDir, "ppt", "slides", "slide*.xml"))
+	sort.Slice(slideFiles, func(i, j int) bool {
+		return slideFileOrder(slideFiles[i]) < slideFileOrder(slideFiles[j])
+	})
+	return slideFiles
+}
+
+func slideFileOrder(filePath string) int {
+	base := strings.TrimSuffix(filepath.Base(filePath), filepath.Ext(filePath))
+	value, err := strconv.Atoi(strings.TrimPrefix(strings.ToLower(base), "slide"))
+	if err != nil {
+		return 1 << 30
+	}
+	return value
 }
 
 func collectSlideInstances(root *etree.Element, ownerXML, relsPath string) []imageInstance {
