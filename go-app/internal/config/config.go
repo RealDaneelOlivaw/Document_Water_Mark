@@ -123,9 +123,9 @@ func ParseExcludePages(raw string) ([]int, error) {
 	}
 
 	replacer := strings.NewReplacer(
-		"，", ",",
-		"、", ",",
-		"；", ",",
+		"\uFF0C", ",",
+		"\u3001", ",",
+		"\uFF1B", ",",
 		";", ",",
 		"\n", ",",
 		"\t", ",",

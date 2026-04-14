@@ -33,7 +33,7 @@ func TestValidateRejectsEmptyText(t *testing.T) {
 }
 
 func TestParseExcludePagesSupportsValuesAndRanges(t *testing.T) {
-	pages, err := ParseExcludePages("1, 3-5，8")
+	pages, err := ParseExcludePages("1, 3-5\uFF0C8")
 	if err != nil {
 		t.Fatalf("unexpected parse error: %v", err)
 	}
