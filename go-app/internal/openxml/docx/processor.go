@@ -21,6 +21,8 @@ import (
 
 var vmlDimensionPattern = regexp.MustCompile(`(width|height)\s*:\s*([0-9.]+)\s*([a-zA-Z]+)`)
 
+const bodyImageMarkerPrefix = "PWTM_BODY_IMG_"
+
 type Processor struct {
 	renderer *watermark.Renderer
 }
@@ -30,6 +32,7 @@ type imageInstance struct {
 	ownerXML    string
 	rID         string
 	attrName    string
+	marker      string
 	widthEMU    int
 	heightEMU   int
 	sizeIsKnown bool
@@ -76,6 +79,19 @@ func (p *Processor) ProcessFile(inputPath, outputPath string, cfg config.Waterma
 		return common.ProcessStats{}, err
 	}
 
+	excludePages := config.BuildExcludePageSet(cfg.ExcludePagesEnabled, cfg.ExcludePages)
+	bodyPageMap := map[string]int{}
+	if cfg.ExcludePagesEnabled {
+		totalPages, pageMap, pageMapErr := buildBodyImagePageMap(tempDir)
+		if pageMapErr != nil {
+			return common.ProcessStats{}, pageMapErr
+		}
+		if err := config.ValidateExcludePagesAgainstTotal(cfg.ExcludePages, totalPages); err != nil {
+			return common.ProcessStats{}, err
+		}
+		bodyPageMap = pageMap
+	}
+
 	ownerFiles, err := filepath.Glob(filepath.Join(tempDir, "word", "*.xml"))
 	if err != nil {
 		return common.ProcessStats{}, err
@@ -90,23 +106,37 @@ func (p *Processor) ProcessFile(inputPath, outputPath string, cfg config.Waterma
 			continue
 		}
 		ownerXML := filepath.ToSlash(strings.TrimPrefix(ownerFile, tempDir+string(os.PathSeparator)))
-		relsPath := filepath.Join(tempDir, "word", "_rels", filepath.Base(ownerFile)+".rels")
-		if _, err := os.Stat(relsPath); err != nil {
-			continue
-		}
-
 		xmlDoc := etree.NewDocument()
 		if err := xmlDoc.ReadFromFile(ownerFile); err != nil {
 			return stats, err
 		}
+		instances := collectInstances(xmlDoc.Root(), ownerXML)
+
+		relsPath := filepath.Join(tempDir, "word", "_rels", filepath.Base(ownerFile)+".rels")
+		if _, err := os.Stat(relsPath); err != nil {
+			stats.TotalImages += len(instances)
+			stats.SkippedImages += len(instances)
+			continue
+		}
+
 		relDoc, relRoot, relByID, err := loadRelationships(relsPath)
 		if err != nil {
 			return stats, err
 		}
 		ctx := relContext{doc: relDoc, root: relRoot, ownerXML: ownerXML, path: relsPath, byID: relByID}
 
-		for _, instance := range collectInstances(xmlDoc.Root(), ownerXML) {
+		for _, instance := range instances {
 			stats.TotalImages++
+			if cfg.ExcludePagesEnabled && ownerXML == "word/document.xml" {
+				pageNumber, ok := bodyPageMap[instance.marker]
+				if !ok || pageNumber <= 0 {
+					return stats, fmt.Errorf("failed to resolve page number for DOCX body image marker %q", instance.marker)
+				}
+				if _, excluded := excludePages[pageNumber]; excluded {
+					stats.SkippedImages++
+					continue
+				}
+			}
 			if cfg.MinAreaPct > 0 && pageArea > 0 && instance.sizeIsKnown {
 				pct := (float64(instance.widthEMU*instance.heightEMU) / float64(pageArea)) * 100.0
 				if pct < float64(cfg.MinAreaPct) {
@@ -199,6 +229,7 @@ func collectInstances(root *etree.Element, ownerXML string) []imageInstance {
 					ownerXML:    ownerXML,
 					rID:         rID,
 					attrName:    "r:embed",
+					marker:      findDrawingMarker(element),
 					widthEMU:    width,
 					heightEMU:   height,
 					sizeIsKnown: known,
@@ -212,6 +243,7 @@ func collectInstances(root *etree.Element, ownerXML string) []imageInstance {
 					ownerXML:    ownerXML,
 					rID:         rID,
 					attrName:    "r:id",
+					marker:      findVMLMarker(element),
 					widthEMU:    width,
 					heightEMU:   height,
 					sizeIsKnown: known,
@@ -224,6 +256,174 @@ func collectInstances(root *etree.Element, ownerXML string) []imageInstance {
 	}
 	walk(root)
 	return instances
+}
+
+func buildBodyImagePageMap(tempDir string) (int, map[string]int, error) {
+	documentPath := filepath.Join(tempDir, "word", "document.xml")
+	markers, err := assignBodyImageMarkers(documentPath)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	markedDocxPath, cleanup, err := createMarkedDocx(tempDir)
+	if err != nil {
+		return 0, nil, err
+	}
+	defer cleanup()
+
+	totalPages, pageMap, err := office.ExtractDOCXBodyImagePages(markedDocxPath, bodyImageMarkerPrefix)
+	if err != nil {
+		return 0, nil, err
+	}
+	for _, marker := range markers {
+		page, ok := pageMap[marker]
+		if !ok || page <= 0 {
+			return 0, nil, fmt.Errorf("failed to map DOCX marker %q to a valid page number", marker)
+		}
+	}
+	return totalPages, pageMap, nil
+}
+
+func assignBodyImageMarkers(documentPath string) ([]string, error) {
+	doc := etree.NewDocument()
+	if err := doc.ReadFromFile(documentPath); err != nil {
+		return nil, err
+	}
+	root := doc.Root()
+	if root == nil {
+		return nil, fmt.Errorf("invalid DOCX document.xml: root is empty")
+	}
+
+	markers := make([]string, 0)
+	nextIndex := 1
+	var walk func(*etree.Element) error
+	walk = func(element *etree.Element) error {
+		switch common.LocalName(element.Tag) {
+		case "blip":
+			if rID, ok := common.GetAttr(element, "r:embed", "embed"); ok && rID != "" {
+				marker := fmt.Sprintf("%s%d", bodyImageMarkerPrefix, nextIndex)
+				if !setDrawingMarker(element, marker) {
+					return fmt.Errorf("failed to assign marker for DrawingML body image #%d", nextIndex)
+				}
+				markers = append(markers, marker)
+				nextIndex++
+			}
+		case "imagedata":
+			if rID, ok := common.GetAttr(element, "r:id", "id"); ok && rID != "" {
+				marker := fmt.Sprintf("%s%d", bodyImageMarkerPrefix, nextIndex)
+				if !setVMLMarker(element, marker) {
+					return fmt.Errorf("failed to assign marker for VML body image #%d", nextIndex)
+				}
+				markers = append(markers, marker)
+				nextIndex++
+			}
+		}
+
+		for _, child := range element.ChildElements() {
+			if err := walk(child); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	if err := walk(root); err != nil {
+		return nil, err
+	}
+	if err := doc.WriteToFile(documentPath); err != nil {
+		return nil, err
+	}
+	return markers, nil
+}
+
+func createMarkedDocx(tempDir string) (string, func(), error) {
+	tempFile, err := os.CreateTemp("", "ppt_watermark_marked_docx_*.docx")
+	if err != nil {
+		return "", func() {}, err
+	}
+	docxPath := tempFile.Name()
+	if closeErr := tempFile.Close(); closeErr != nil {
+		_ = os.Remove(docxPath)
+		return "", func() {}, closeErr
+	}
+	cleanup := func() { _ = os.Remove(docxPath) }
+
+	if err := common.ZipDir(tempDir, docxPath); err != nil {
+		cleanup()
+		return "", func() {}, err
+	}
+	return docxPath, cleanup, nil
+}
+
+func setDrawingMarker(element *etree.Element, marker string) bool {
+	for current := element; current != nil; current = current.Parent() {
+		local := common.LocalName(current.Tag)
+		if local != "inline" && local != "anchor" {
+			continue
+		}
+		docPr := findDescendantByLocalName(current, "docPr")
+		if docPr == nil {
+			return false
+		}
+		common.SetAttr(docPr, "descr", marker)
+		common.SetAttr(docPr, "title", marker)
+		return true
+	}
+	return false
+}
+
+func setVMLMarker(element *etree.Element, marker string) bool {
+	for current := element.Parent(); current != nil; current = current.Parent() {
+		if common.LocalName(current.Tag) != "shape" {
+			continue
+		}
+		common.SetAttr(current, "o:title", marker, "title")
+		return true
+	}
+	return false
+}
+
+func findDrawingMarker(element *etree.Element) string {
+	for current := element; current != nil; current = current.Parent() {
+		local := common.LocalName(current.Tag)
+		if local != "inline" && local != "anchor" {
+			continue
+		}
+		docPr := findDescendantByLocalName(current, "docPr")
+		if docPr == nil {
+			return ""
+		}
+		if marker, ok := common.GetAttr(docPr, "descr", "title", "name"); ok {
+			return marker
+		}
+		return ""
+	}
+	return ""
+}
+
+func findVMLMarker(element *etree.Element) string {
+	for current := element.Parent(); current != nil; current = current.Parent() {
+		if common.LocalName(current.Tag) != "shape" {
+			continue
+		}
+		if marker, ok := common.GetAttr(current, "o:title", "title"); ok {
+			return marker
+		}
+		return ""
+	}
+	return ""
+}
+
+func findDescendantByLocalName(element *etree.Element, localName string) *etree.Element {
+	if common.LocalName(element.Tag) == localName {
+		return element
+	}
+	for _, child := range element.ChildElements() {
+		if found := findDescendantByLocalName(child, localName); found != nil {
+			return found
+		}
+	}
+	return nil
 }
 
 func findDrawingSize(element *etree.Element) (int, int, bool) {
