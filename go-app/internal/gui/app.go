@@ -80,6 +80,7 @@ func (a *App) create() error {
 		Title:    "\u6587\u6863\u56fe\u7247\u6c34\u5370\u5de5\u5177 V1.7 - Developed by Kejie Zhang, with assistance from Claude.",
 		Size:     declarative.Size{Width: 760, Height: 610},
 		MinSize:  declarative.Size{Width: 700, Height: 560},
+		Visible:  false,
 		Layout:   declarative.VBox{Margins: declarative.Margins{Left: 10, Top: 10, Right: 10, Bottom: 10}, Spacing: 8},
 		Children: []declarative.Widget{
 			declarative.Composite{
@@ -262,6 +263,7 @@ func (a *App) create() error {
 	a.finalizeLayout()
 	a.syncExcludePagesControl()
 	a.centerMainWindowIfNeeded()
+	a.mainWindow.Show()
 	return nil
 }
 
