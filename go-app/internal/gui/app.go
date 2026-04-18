@@ -88,7 +88,7 @@ func (a *App) create() error {
 				Layout:    declarative.HBox{MarginsZero: true, Spacing: 4, Alignment: declarative.AlignHNearVNear},
 				Children: []declarative.Widget{
 					declarative.Label{
-						Text: "\u6587\u6863\u6c34\u5370\u5de5\u5177V1.7",
+						Text: "\u6587\u6863\u56fe\u7247\u6c34\u5370\u5de5\u5177V1.7",
 						Font: declarative.Font{Family: "Microsoft YaHei UI", PointSize: 12, Bold: true},
 					},
 				},
