@@ -1,4 +1,0 @@
-Pillow
-python-pptx
-python-docx
-pymupdf

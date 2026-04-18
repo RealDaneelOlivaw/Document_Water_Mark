@@ -1,6 +1,6 @@
 package buildinfo
 
 const (
-	Version      = "V1.6"
+	Version      = "V1.7"
 	Distribution = "Go GUI Preview"
 )

@@ -77,7 +77,7 @@ func (a *App) create() error {
 
 	mw := declarative.MainWindow{
 		AssignTo: &a.mainWindow,
-		Title:    "\u6587\u6863\u56fe\u7247\u6c34\u5370\u5de5\u5177 V1.6 - Developed by Kejie Zhang, with assistance from Claude.",
+		Title:    "\u6587\u6863\u56fe\u7247\u6c34\u5370\u5de5\u5177 V1.7 - Developed by Kejie Zhang, with assistance from Claude.",
 		Size:     declarative.Size{Width: 760, Height: 610},
 		MinSize:  declarative.Size{Width: 700, Height: 560},
 		Layout:   declarative.VBox{Margins: declarative.Margins{Left: 10, Top: 10, Right: 10, Bottom: 10}, Spacing: 8},
@@ -87,7 +87,7 @@ func (a *App) create() error {
 				Layout:    declarative.HBox{MarginsZero: true, Spacing: 4, Alignment: declarative.AlignHNearVNear},
 				Children: []declarative.Widget{
 					declarative.Label{
-						Text: "文档图片水印工具V1.6",
+						Text: "鏂囨。鍥剧墖姘村嵃宸ュ叿V1.7",
 						Font: declarative.Font{Family: "Microsoft YaHei UI", PointSize: 12, Bold: true},
 					},
 				},
@@ -106,7 +106,7 @@ func (a *App) create() error {
 								Title:  "\u6587\u4ef6\u9009\u62e9",
 								Layout: declarative.VBox{},
 								Children: []declarative.Widget{
-									declarative.Label{Text: "surpport PPT, Word, Picture"},
+									declarative.Label{Text: "Support PPT, Word, Picture"},
 									declarative.ListBox{
 										AssignTo: &a.fileList,
 										Model:    a.files,
@@ -443,20 +443,31 @@ func (a *App) addFolder() {
 		return
 	}
 	var allFiles []string
+	initialDir := ""
 
 	for {
-		dialog := new(walk.FileDialog)
-		dialog.Title = "\u9009\u62e9\u6587\u4ef6\u5939"
-		ok, err := dialog.ShowBrowseFolder(a.mainWindow)
+		root, ok, err := showModernFolderDialog(a.mainWindow, "\u9009\u62e9\u6587\u4ef6\u5939", initialDir)
 		if err != nil {
-			walk.MsgBox(a.mainWindow, "\u9519\u8bef", err.Error(), walk.MsgBoxIconError)
-			return
+			// Fallback for systems where IFileDialog is unavailable.
+			legacyDialog := new(walk.FileDialog)
+			legacyDialog.Title = "\u9009\u62e9\u6587\u4ef6\u5939"
+			legacyDialog.InitialDirPath = initialDir
+			ok, legacyErr := legacyDialog.ShowBrowseFolder(a.mainWindow)
+			if legacyErr != nil {
+				walk.MsgBox(a.mainWindow, "\u9519\u8bef", err.Error(), walk.MsgBoxIconError)
+				return
+			}
+			if !ok {
+				break
+			}
+			root = legacyDialog.FilePath
 		}
 		if !ok {
 			break
 		}
 
-		root := filepath.Clean(dialog.FilePath)
+		root = filepath.Clean(root)
+		initialDir = root
 		files, err := collectSupportedFilesRecursively(root)
 		if err != nil {
 			walk.MsgBox(a.mainWindow, "\u9519\u8bef", err.Error(), walk.MsgBoxIconError)
