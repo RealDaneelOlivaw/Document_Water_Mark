@@ -261,7 +261,22 @@ func (a *App) create() error {
 	a.applyWindowIcon()
 	a.finalizeLayout()
 	a.syncExcludePagesControl()
+	a.centerMainWindowIfNeeded()
 	return nil
+}
+
+func (a *App) centerMainWindowIfNeeded() {
+	if a.mainWindow == nil {
+		return
+	}
+	app := walk.App()
+	if app != nil && app.Settings() != nil {
+		state, err := a.mainWindow.ReadState()
+		if err == nil && state != "" {
+			return
+		}
+	}
+	centerMainWindowOnPrimaryWorkArea(a.mainWindow)
 }
 
 func (a *App) applyWindowIcon() {
