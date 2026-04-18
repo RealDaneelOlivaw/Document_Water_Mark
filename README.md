@@ -1,78 +1,89 @@
 # 文档图片水印工具
 
-这个仓库现在保留两条实现线：
+为 Office 文档与常见图片批量添加图片级水印（在嵌入的图片上绘制水印），提供 **Windows 原生 GUI**（Go）与仓库内保留的 **Python 参考实现**。
 
-1. `src/` 下的 Python 版本  
-   用来保存当前已经验证过的参考实现与处理逻辑。
-2. `go-app/` 下的 Go 版本  
-   这是后续准备分发给别人使用的 Windows 原生 GUI 版，目标是打成单文件 exe。
+更详细的界面操作与参数说明见：**[使用说明.html](./使用说明.html)**。
 
-## 当前分支
+## 仓库结构
 
-当前 `go-branch` 的工作重点是 Go 重写版。
+| 目录 | 说明 |
+|------|------|
+| `go-app/` | Windows GUI 程序源码，可构建为单文件 `exe`，面向最终用户分发 |
+| `src/` | Python 参考实现，用于对照行为与算法细节 |
 
-## Go 版范围
+## Go 版支持格式
 
-- 只支持 `PPTX`
-- 只支持 `DOCX`
-- 不再支持 `PDF`
-- 输出文件写回原文档所在目录
-- 不覆盖原文件，默认输出为 `_watermarked`，重名时自动追加序号
+- **演示文稿**：`.pptx`
+- **Word**：`.docx`
+- **图片**：`.jpg`、`.jpeg`、`.png`、`.bmp`、`.gif`、`.tif`、`.tiff`
 
-## Go 版默认参数
+不支持 PDF。旧版 `.ppt` / `.doc` 需先另存为 `pptx` / `docx`。
 
-- 水印文字：`超卓航科广州研究院`
-- 字号：`14`
-- 颜色：`#000000`
-- 透明度：`30`
-- 旋转角度：`30`
-- 位置模式：`tile`
-- 横向间距倍数：`0.2`
-- 纵向间距倍数：`0.2`
-- 边距 X / Y：`1`
-- 小图过滤：`0`
+## 输出规则
 
-## Go 版工程结构
+- 结果文件写在**原文件同一目录**。
+- **不覆盖原文件**：默认文件名为 `原名_watermarked` + 原扩展名；若已存在则自动追加 `_2`、`_3` …
+- 可选「删除原文件只保留带水印文件」（以界面勾选为准）。
 
-```text
-go-app/
-  cmd/watermark-gui           Windows GUI 入口
-  internal/gui                原生 GUI
-  internal/config             默认值与参数校验
-  internal/watermark          字体加载与水印渲染
-  internal/openxml/pptx       PPTX 处理
-  internal/openxml/docx       DOCX 处理
-  internal/compat/office      Word/WPS 兼容兜底
-  build.ps1                   构建脚本
-```
+## Go 版默认参数（与 `internal/config` 一致）
 
-## Go 版构建
+| 项 | 默认值 |
+|----|--------|
+| 水印文字 | 超卓航科广州研究院 |
+| 字体 | 微软雅黑 |
+| 字号 (pt) | 12 |
+| 颜色 | `#000000`（黑） |
+| 透明度 | 6（0–100） |
+| 旋转角度 | 0 |
+| 位置模式 | `tile`（平铺）；还可选 `top_left`、`center`、`bottom_right` |
+| 横向间距倍数 | 0.2 |
+| 纵向间距倍数 | 1.5 |
+| 边距 X / Y (pt) | 2 / 2 |
+| 小图过滤 (%) | 3 |
 
-确保本机已经安装 Go，然后执行：
+## 构建（Windows）
+
+需已安装 Go，在仓库根目录执行：
 
 ```powershell
 cd go-app
 .\build.ps1
 ```
 
-默认会产出：
+默认输出：
 
 ```text
 dist/watermark-gui.exe
 ```
 
-构建命令等价于：
+等价命令示例：
 
 ```powershell
 go build -trimpath -ldflags "-s -w -H=windowsgui"
 ```
 
-## Python 版本说明
+## 使用方式概要
 
-Python 版本仍然保留在仓库里，主要用途是：
+1. 运行 `watermark-gui.exe`（或自行构建后的可执行文件）。
+2. 「添加文件」或「添加文件夹」（文件夹会递归收集支持的格式）。
+3. 在右侧调整水印文字、字体、颜色、位置等参数。
+4. 点击「开始处理」，在「处理结果」区域查看每条日志。
 
-- 作为 Go 重写时的行为基线
-- 用于对照算法与兼容细节
-- 在 Go 版未完全替代前继续作为参考实现
+## Go 版工程结构
 
-它不再是后续面向最终用户的主要分发形态。
+```text
+go-app/
+  cmd/watermark-gui           GUI 入口
+  internal/gui                界面与交互
+  internal/config             默认值与参数校验
+  internal/watermark          字体与水印渲染
+  internal/openxml/pptx       PPTX
+  internal/openxml/docx       DOCX
+  internal/picture            图片流水线
+  internal/processor          统一调度
+  build.ps1                   构建脚本
+```
+
+## Python 版本
+
+仍保留在 `src/`，主要作为 Go 重写时的行为基线与对照，**不是**面向最终用户的主要分发形态。

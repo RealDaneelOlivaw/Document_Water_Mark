@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>文档图片水印工具 — 使用说明</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f6f7f9;
+      --fg: #1a1d26;
+      --muted: #5c6370;
+      --card: #fff;
+      --border: #d8dce3;
+      --accent: #1f4e79;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #12141a;
+        --fg: #e8eaef;
+        --muted: #9aa3b2;
+        --card: #1c1f28;
+        --border: #353b48;
+        --accent: #6ba3d6;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Microsoft YaHei UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.6;
+      font-size: 15px;
+    }
+    header {
+      padding: 2rem 1.5rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--card);
+    }
+    header h1 {
+      margin: 0 0 0.35rem;
+      font-size: 1.65rem;
+      font-weight: 650;
+    }
+    header p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+    main {
+      max-width: 52rem;
+      margin: 0 auto;
+      padding: 1.5rem;
+    }
+    section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem 1.35rem;
+      margin-bottom: 1.25rem;
+    }
+    section h2 {
+      margin: 0 0 0.75rem;
+      font-size: 1.15rem;
+      color: var(--accent);
+    }
+    ol, ul { margin: 0.35rem 0 0; padding-left: 1.35rem; }
+    li { margin: 0.35rem 0; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.92rem;
+      margin-top: 0.5rem;
+    }
+    th, td {
+      text-align: left;
+      padding: 0.45rem 0.6rem;
+      border: 1px solid var(--border);
+    }
+    th { background: rgba(127, 127, 127, 0.08); }
+    code {
+      font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+      font-size: 0.88em;
+      padding: 0.12em 0.35em;
+      border-radius: 4px;
+      background: rgba(127, 127, 127, 0.12);
+    }
+    .note {
+      margin-top: 0.75rem;
+      padding: 0.65rem 0.85rem;
+      border-radius: 8px;
+      border: 1px dashed var(--border);
+      font-size: 0.92rem;
+      color: var(--muted);
+    }
+    footer {
+      text-align: center;
+      padding: 1rem 1.5rem 2rem;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>文档图片水印工具</h1>
+    <p>Windows GUI 版使用说明（与仓库内 Go 程序行为一致）</p>
+  </header>
+  <main>
+    <section>
+      <h2>程序能做什么</h2>
+      <p>在 <strong>PPTX</strong>、<strong>DOCX</strong> 以及常见 <strong>图片文件</strong> 中，对嵌入或文件本身的位图绘制文字水印（图片级水印），并导出为新文件。</p>
+      <p class="note">不支持 PDF。若只有旧版 <code>.ppt</code> / <code>.doc</code>，请先在 Office / WPS 中另存为 <code>.pptx</code> / <code>.docx</code>。</p>
+    </section>
+
+    <section>
+      <h2>快速上手</h2>
+      <ol>
+        <li>双击运行 <code>watermark-gui.exe</code>（或自行从 <code>go-app</code> 构建生成的可执行文件）。</li>
+        <li>在左侧「文件选择」中点击 <strong>添加文件</strong> 选择多个文件，或 <strong>添加文件夹</strong> 递归导入整目录下所有支持的文件。</li>
+        <li>在右侧「参数设置」中填写或选择水印文字、字体、颜色、位置模式等（详见下表）。</li>
+        <li>点击底部 <strong>开始处理</strong>。进度条与状态栏会显示当前进度；「处理结果」文本框内逐条输出成功或失败原因。</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>输出文件命名</h2>
+      <ul>
+        <li>新文件保存在<strong>与原文件相同</strong>的文件夹中。</li>
+        <li>默认文件名为：<code>原文件名_watermarked</code> + 原扩展名（例如 <code>报告.pptx</code> → <code>报告_watermarked.pptx</code>）。</li>
+        <li>若该名称已存在，会自动使用 <code>_watermarked_2</code>、<code>_watermarked_3</code> … 直到不冲突为止。</li>
+        <li>勾选「删除原文件只保留带水印文件」时，处理成功后会尝试删除输入文件；若删除失败，日志中会出现警告，输出文件仍保留。</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>参数说明与默认值</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>参数</th>
+            <th>说明</th>
+            <th>默认</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>水印文字</td>
+            <td>显示在图片上的文字内容，可多行。</td>
+            <td>超卓航科广州研究院</td>
+          </tr>
+          <tr>
+            <td>字体名称</td>
+            <td>通过「选择」从列表挑选本机可用字体。</td>
+            <td>微软雅黑</td>
+          </tr>
+          <tr>
+            <td>字号 (pt)</td>
+            <td>正整数。</td>
+            <td>12</td>
+          </tr>
+          <tr>
+            <td>透明度</td>
+            <td>0–100，数值越大水印越不透明。</td>
+            <td>6</td>
+          </tr>
+          <tr>
+            <td>颜色</td>
+            <td>通过「选择」使用预设颜色（黑/白/红等）。</td>
+            <td>黑色 <code>#000000</code></td>
+          </tr>
+          <tr>
+            <td>旋转角度</td>
+            <td>水印文字旋转，单位度。</td>
+            <td>0</td>
+          </tr>
+          <tr>
+            <td>位置模式</td>
+            <td><code>tile</code> 平铺；<code>top_left</code> / <code>center</code> / <code>bottom_right</code> 为单点 placement。</td>
+            <td>tile</td>
+          </tr>
+          <tr>
+            <td>横向 / 纵向间距倍数</td>
+            <td>平铺时控制水印之间的间距比例。</td>
+            <td>0.2 / 1.5</td>
+          </tr>
+          <tr>
+            <td>边距 X / Y (pt)</td>
+            <td>与页面或图片边缘的留白。</td>
+            <td>2 / 2</td>
+          </tr>
+          <tr>
+            <td>小图过滤 (%)</td>
+            <td>过小的图片可按面积比例跳过，避免徽标等被误加水印。</td>
+            <td>3</td>
+          </tr>
+          <tr>
+            <td>排除页码</td>
+            <td>启用后，跳过 PPT/Word 中的指定页（页码从 1 起）。支持逗号、中文逗号、顿号、分号分隔；可用区间如 <code>3-5</code>。示例：<code>1,4,7-9</code>。</td>
+            <td>默认关闭</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>支持的文件扩展名</h2>
+      <p><code>.pptx</code>、<code>.docx</code>、<code>.jpg</code>、<code>.jpeg</code>、<code>.png</code>、<code>.bmp</code>、<code>.gif</code>、<code>.tif</code>、<code>.tiff</code></p>
+    </section>
+
+    <section>
+      <h2>从源码构建</h2>
+      <p>安装 Go 后，在 <code>go-app</code> 目录执行 <code>.\build.ps1</code>，产物一般为 <code>dist\watermark-gui.exe</code>。详见仓库根目录 <code>README.md</code>。</p>
+    </section>
+  </main>
+  <footer>
+    文档与程序版本以仓库内代码为准；若界面文案与本文不一致，以实际程序为准。
+  </footer>
+</body>
+</html>
