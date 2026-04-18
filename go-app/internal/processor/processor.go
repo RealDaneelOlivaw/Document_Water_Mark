@@ -2,6 +2,7 @@ package processor
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -9,6 +10,7 @@ import (
 	"pptwatermark/goapp/internal/openxml/common"
 	"pptwatermark/goapp/internal/openxml/docx"
 	"pptwatermark/goapp/internal/openxml/pptx"
+	"pptwatermark/goapp/internal/picture"
 )
 
 type Result struct {
@@ -17,6 +19,7 @@ type Result struct {
 	Success    bool
 	Stats      common.ProcessStats
 	Err        error
+	Warning    string
 }
 
 func ProcessFile(inputPath string, cfg config.WatermarkConfig) Result {
@@ -24,7 +27,8 @@ func ProcessFile(inputPath string, cfg config.WatermarkConfig) Result {
 	outputPath := common.UniqueOutputPath(inputPath)
 	result.OutputPath = outputPath
 
-	switch strings.ToLower(filepath.Ext(inputPath)) {
+	ext := strings.ToLower(filepath.Ext(inputPath))
+	switch ext {
 	case ".pptx":
 		stats, err := pptx.New().ProcessFile(inputPath, outputPath, cfg)
 		result.Stats = stats
@@ -34,8 +38,34 @@ func ProcessFile(inputPath string, cfg config.WatermarkConfig) Result {
 		result.Stats = stats
 		result.Err = err
 	default:
-		result.Err = fmt.Errorf("unsupported file type: %s", filepath.Ext(inputPath))
+		if picture.IsSupportedExtension(ext) {
+			stats, err := picture.New().ProcessFile(inputPath, outputPath, cfg)
+			result.Stats = stats
+			result.Err = err
+		} else {
+			result.Err = fmt.Errorf("unsupported file type: %s", filepath.Ext(inputPath))
+		}
 	}
 	result.Success = result.Err == nil
+	applyDeleteOriginalPolicy(&result, cfg, nil)
 	return result
+}
+
+func applyDeleteOriginalPolicy(result *Result, cfg config.WatermarkConfig, removeFile func(string) error) {
+	if result == nil || !cfg.DeleteOriginalEnabled || !result.Success {
+		return
+	}
+
+	inputPath := filepath.Clean(result.InputPath)
+	outputPath := filepath.Clean(result.OutputPath)
+	if strings.EqualFold(inputPath, outputPath) {
+		return
+	}
+
+	if removeFile == nil {
+		removeFile = os.Remove
+	}
+	if err := removeFile(result.InputPath); err != nil {
+		result.Warning = fmt.Sprintf("删除原文件失败: %v", err)
+	}
 }

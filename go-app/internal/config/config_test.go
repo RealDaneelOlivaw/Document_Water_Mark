@@ -10,17 +10,20 @@ func TestDefaultConfigMatchesPlan(t *testing.T) {
 	if cfg.FontSizePt != 12 {
 		t.Fatalf("expected default font size 12, got %d", cfg.FontSizePt)
 	}
-	if cfg.Opacity != 10 {
-		t.Fatalf("expected default opacity 10, got %d", cfg.Opacity)
+	if cfg.Opacity != 6 {
+		t.Fatalf("expected default opacity 6, got %d", cfg.Opacity)
 	}
-	if cfg.GapXRatio != 0.1 {
-		t.Fatalf("expected default gap x ratio 0.1, got %.2f", cfg.GapXRatio)
+	if cfg.GapXRatio != 0.2 {
+		t.Fatalf("expected default gap x ratio 0.2, got %.2f", cfg.GapXRatio)
 	}
-	if cfg.GapYRatio != 0.05 {
-		t.Fatalf("expected default gap y ratio 0.05, got %.2f", cfg.GapYRatio)
+	if cfg.GapYRatio != 1.5 {
+		t.Fatalf("expected default gap y ratio 1.5, got %.2f", cfg.GapYRatio)
 	}
 	if cfg.MinAreaPct != 3 {
 		t.Fatalf("expected default min area pct 3, got %d", cfg.MinAreaPct)
+	}
+	if cfg.DeleteOriginalEnabled {
+		t.Fatal("expected delete original default to false")
 	}
 }
 

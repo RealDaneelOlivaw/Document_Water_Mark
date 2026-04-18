@@ -43,8 +43,9 @@ type WatermarkConfig struct {
 	MarginYPt  int
 	MinAreaPct int
 
-	ExcludePagesEnabled bool
-	ExcludePages        []int
+	ExcludePagesEnabled   bool
+	ExcludePages          []int
+	DeleteOriginalEnabled bool
 }
 
 func Default() WatermarkConfig {

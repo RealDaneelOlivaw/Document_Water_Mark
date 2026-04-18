@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -24,20 +25,21 @@ type App struct {
 	progress    *walk.ProgressBar
 	paramScroll *walk.ScrollView
 
-	watermarkText *walk.TextEdit
-	fontNameEdit  *walk.LineEdit
-	colorNameEdit *walk.LineEdit
-	positionEdit  *walk.LineEdit
-	fontSizeEdit  *walk.LineEdit
-	opacityEdit   *walk.LineEdit
-	rotationEdit  *walk.LineEdit
-	gapXEdit      *walk.LineEdit
-	gapYEdit      *walk.LineEdit
-	marginXEdit   *walk.LineEdit
-	marginYEdit   *walk.LineEdit
-	minAreaEdit   *walk.LineEdit
-	excludeCheck  *walk.CheckBox
-	excludeEdit   *walk.LineEdit
+	watermarkText       *walk.TextEdit
+	fontNameEdit        *walk.LineEdit
+	colorNameEdit       *walk.LineEdit
+	positionEdit        *walk.LineEdit
+	fontSizeEdit        *walk.LineEdit
+	opacityEdit         *walk.LineEdit
+	rotationEdit        *walk.LineEdit
+	gapXEdit            *walk.LineEdit
+	gapYEdit            *walk.LineEdit
+	marginXEdit         *walk.LineEdit
+	marginYEdit         *walk.LineEdit
+	minAreaEdit         *walk.LineEdit
+	excludeCheck        *walk.CheckBox
+	excludeEdit         *walk.LineEdit
+	deleteOriginalCheck *walk.CheckBox
 
 	startButton *walk.PushButton
 
@@ -75,7 +77,7 @@ func (a *App) create() error {
 
 	mw := declarative.MainWindow{
 		AssignTo: &a.mainWindow,
-		Title:    "\u6587\u6863\u56fe\u7247\u6c34\u5370\u5de5\u5177 V1.0 - Developed by Kejie Zhang, with assistance from Claude.",
+		Title:    "\u6587\u6863\u56fe\u7247\u6c34\u5370\u5de5\u5177 V1.6 - Developed by Kejie Zhang, with assistance from Claude.",
 		Size:     declarative.Size{Width: 760, Height: 610},
 		MinSize:  declarative.Size{Width: 700, Height: 560},
 		Layout:   declarative.VBox{Margins: declarative.Margins{Left: 10, Top: 10, Right: 10, Bottom: 10}, Spacing: 8},
@@ -85,7 +87,7 @@ func (a *App) create() error {
 				Layout:    declarative.HBox{MarginsZero: true, Spacing: 4, Alignment: declarative.AlignHNearVNear},
 				Children: []declarative.Widget{
 					declarative.Label{
-						Text: "文档图片水印工具V1.0",
+						Text: "文档图片水印工具V1.6",
 						Font: declarative.Font{Family: "Microsoft YaHei UI", PointSize: 12, Bold: true},
 					},
 				},
@@ -104,7 +106,7 @@ func (a *App) create() error {
 								Title:  "\u6587\u4ef6\u9009\u62e9",
 								Layout: declarative.VBox{},
 								Children: []declarative.Widget{
-									declarative.Label{Text: "Supports .pptx / .docx"},
+									declarative.Label{Text: "surpport PPT, Word, Picture"},
 									declarative.ListBox{
 										AssignTo: &a.fileList,
 										Model:    a.files,
@@ -226,6 +228,13 @@ func (a *App) create() error {
 														MinSize:  fieldMin,
 													},
 												},
+											},
+
+											declarative.Label{Text: "\u5220\u9664\u539f\u6587\u4ef6", MinSize: labelMin},
+											declarative.CheckBox{
+												AssignTo: &a.deleteOriginalCheck,
+												Text:     "\u5220\u9664\u539f\u6587\u4ef6\u53ea\u4fdd\u7559\u5e26\u6c34\u5370\u6587\u4ef6",
+												Checked:  false,
 											},
 										},
 									},
@@ -419,7 +428,7 @@ func (a *App) addFiles() {
 	}
 	dialog := new(walk.FileDialog)
 	dialog.Title = "\u9009\u62e9\u8981\u5904\u7406\u7684\u6587\u6863"
-	dialog.Filter = "\u652f\u6301\u7684\u6587\u6863 (*.pptx;*.docx)|*.pptx;*.docx"
+	dialog.Filter = "\u652f\u6301\u7684\u6587\u6863 (*.pptx;*.docx;*.jpg;*.jpeg;*.png;*.bmp;*.gif;*.tif;*.tiff)|*.pptx;*.docx;*.jpg;*.jpeg;*.png;*.bmp;*.gif;*.tif;*.tiff"
 	if ok, err := dialog.ShowOpenMultiple(a.mainWindow); err != nil {
 		walk.MsgBox(a.mainWindow, "\u9519\u8bef", err.Error(), walk.MsgBoxIconError)
 		return
@@ -433,32 +442,87 @@ func (a *App) addFolder() {
 	if a.processing {
 		return
 	}
-	dialog := new(walk.FileDialog)
-	dialog.Title = "\u9009\u62e9\u6587\u4ef6\u5939"
-	if ok, err := dialog.ShowBrowseFolder(a.mainWindow); err != nil {
-		walk.MsgBox(a.mainWindow, "\u9519\u8bef", err.Error(), walk.MsgBoxIconError)
-		return
-	} else if !ok {
-		return
+	var allFiles []string
+
+	for {
+		dialog := new(walk.FileDialog)
+		dialog.Title = "\u9009\u62e9\u6587\u4ef6\u5939"
+		ok, err := dialog.ShowBrowseFolder(a.mainWindow)
+		if err != nil {
+			walk.MsgBox(a.mainWindow, "\u9519\u8bef", err.Error(), walk.MsgBoxIconError)
+			return
+		}
+		if !ok {
+			break
+		}
+
+		root := filepath.Clean(dialog.FilePath)
+		files, err := collectSupportedFilesRecursively(root)
+		if err != nil {
+			walk.MsgBox(a.mainWindow, "\u9519\u8bef", err.Error(), walk.MsgBoxIconError)
+			return
+		}
+		if len(files) == 0 {
+			a.appendLog(fmt.Sprintf("%s \u4e0b\u672a\u627e\u5230\u53ef\u5904\u7406\u6587\u4ef6\u3002", root))
+		} else {
+			a.appendLog(fmt.Sprintf("%s \u4e0b\u627e\u5230 %d \u4e2a\u53ef\u5904\u7406\u6587\u4ef6\u3002", root, len(files)))
+		}
+		allFiles = append(allFiles, files...)
+
+		choice := walk.MsgBox(
+			a.mainWindow,
+			"\u7ee7\u7eed\u9009\u62e9",
+			"\u662f\u5426\u7ee7\u7eed\u6dfb\u52a0\u5176\u4ed6\u6587\u4ef6\u5939\uff1f",
+			walk.MsgBoxYesNo|walk.MsgBoxIconQuestion,
+		)
+		if choice != walk.DlgCmdYes {
+			break
+		}
 	}
-	root := dialog.FilePath
-	entries, err := os.ReadDir(root)
+
+	if len(allFiles) > 0 {
+		a.appendPaths(allFiles)
+	}
+}
+
+func collectSupportedFilesRecursively(root string) ([]string, error) {
+	info, err := os.Stat(root)
 	if err != nil {
-		walk.MsgBox(a.mainWindow, "\u9519\u8bef", err.Error(), walk.MsgBoxIconError)
-		return
+		return nil, err
 	}
-	var files []string
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		fullPath := filepath.Join(root, entry.Name())
-		switch strings.ToLower(filepath.Ext(fullPath)) {
-		case ".pptx", ".docx":
-			files = append(files, fullPath)
-		}
+	if !info.IsDir() {
+		return nil, fmt.Errorf("selected path is not a folder: %s", root)
 	}
-	a.appendPaths(files)
+
+	files := make([]string, 0, 128)
+	walkErr := filepath.Walk(root, func(current string, info os.FileInfo, err error) error {
+		if err != nil {
+			// Skip inaccessible paths so the overall scan can continue.
+			return nil
+		}
+		if info == nil || info.IsDir() {
+			return nil
+		}
+		if isSupportedInputFile(current) {
+			files = append(files, current)
+		}
+		return nil
+	})
+	if walkErr != nil {
+		return nil, walkErr
+	}
+
+	sort.Strings(files)
+	return files, nil
+}
+
+func isSupportedInputFile(path string) bool {
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".pptx", ".docx", ".jpg", ".jpeg", ".png", ".bmp", ".gif", ".tif", ".tiff":
+		return true
+	default:
+		return false
+	}
 }
 
 func (a *App) appendPaths(paths []string) {
@@ -608,6 +672,7 @@ func (a *App) buildConfig() (config.WatermarkConfig, error) {
 		}
 		cfg.ExcludePages = pages
 	}
+	cfg.DeleteOriginalEnabled = a.deleteOriginalCheck != nil && a.deleteOriginalCheck.Checked()
 	cfg.Position = strings.TrimSpace(a.positionEdit.Text())
 	if err := cfg.Validate(); err != nil {
 		return cfg, err
@@ -636,7 +701,7 @@ func formatResultLine(result processor.Result) string {
 	if !result.Success {
 		return fmt.Sprintf("\u5931\u8d25: %s -> %v", filepath.Base(result.InputPath), result.Err)
 	}
-	return fmt.Sprintf(
+	line := fmt.Sprintf(
 		"\u6210\u529f: %s -> %s (\u56fe\u7247 %d, \u6c34\u5370 %d, \u8df3\u8fc7 %d)",
 		filepath.Base(result.InputPath),
 		filepath.Base(result.OutputPath),
@@ -644,4 +709,8 @@ func formatResultLine(result processor.Result) string {
 		result.Stats.WatermarkedImages,
 		result.Stats.SkippedImages,
 	)
+	if strings.TrimSpace(result.Warning) != "" {
+		line += fmt.Sprintf(" [\u8b66\u544a: %s]", result.Warning)
+	}
+	return line
 }

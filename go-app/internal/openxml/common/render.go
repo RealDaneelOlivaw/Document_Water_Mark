@@ -89,7 +89,7 @@ func RenderWatermarkedBlob(renderer *watermark.Renderer, source []byte, format s
 		err = gif.Encode(buffer, result, nil)
 	case "bmp":
 		err = bmp.Encode(buffer, result)
-	case "tiff":
+	case "tiff", "tif":
 		err = tiff.Encode(buffer, result, nil)
 	default:
 		err = png.Encode(buffer, result)
