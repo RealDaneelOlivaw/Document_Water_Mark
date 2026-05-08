@@ -107,7 +107,7 @@ func (a *App) create() error {
 								Title:  "\u6587\u4ef6\u9009\u62e9",
 								Layout: declarative.VBox{},
 								Children: []declarative.Widget{
-									declarative.Label{Text: "Support PPT, Word, Picture"},
+									declarative.Label{Text: "Support PPT, Word, Excel, PDF, Picture"},
 									declarative.ListBox{
 										AssignTo: &a.fileList,
 										Model:    a.files,
@@ -445,7 +445,7 @@ func (a *App) addFiles() {
 	}
 	dialog := new(walk.FileDialog)
 	dialog.Title = "\u9009\u62e9\u8981\u5904\u7406\u7684\u6587\u6863"
-	dialog.Filter = "\u652f\u6301\u7684\u6587\u6863 (*.pptx;*.docx;*.jpg;*.jpeg;*.png;*.bmp;*.gif;*.tif;*.tiff)|*.pptx;*.docx;*.jpg;*.jpeg;*.png;*.bmp;*.gif;*.tif;*.tiff"
+	dialog.Filter = "\u652f\u6301\u7684\u6587\u6863 (*.ppt;*.pptx;*.doc;*.docx;*.xls;*.xlsx;*.pdf;*.jpg;*.jpeg;*.png;*.bmp;*.gif;*.tif;*.tiff)|*.ppt;*.pptx;*.doc;*.docx;*.xls;*.xlsx;*.pdf;*.jpg;*.jpeg;*.png;*.bmp;*.gif;*.tif;*.tiff"
 	if ok, err := dialog.ShowOpenMultiple(a.mainWindow); err != nil {
 		walk.MsgBox(a.mainWindow, "\u9519\u8bef", err.Error(), walk.MsgBoxIconError)
 		return
@@ -546,7 +546,7 @@ func collectSupportedFilesRecursively(root string) ([]string, error) {
 
 func isSupportedInputFile(path string) bool {
 	switch strings.ToLower(filepath.Ext(path)) {
-	case ".pptx", ".docx", ".jpg", ".jpeg", ".png", ".bmp", ".gif", ".tif", ".tiff":
+	case ".ppt", ".pptx", ".doc", ".docx", ".xls", ".xlsx", ".pdf", ".jpg", ".jpeg", ".png", ".bmp", ".gif", ".tif", ".tiff":
 		return true
 	default:
 		return false

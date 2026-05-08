@@ -46,6 +46,109 @@ Write-Output ('ERROR|' + ($failures -join ' || '))
 exit 1
 `
 
+const wordConvertScript = `
+$ErrorActionPreference = 'Stop'
+$source = $env:PPT_WATERMARK_OFFICE_SOURCE
+$target = $env:PPT_WATERMARK_OFFICE_TARGET
+$format = [int]$env:PPT_WATERMARK_OFFICE_FORMAT
+$attempts = @(
+    @{ Name = 'Word'; ProgId = 'Word.Application'; SaveMethod = 'SaveAs2' },
+    @{ Name = 'Word'; ProgId = 'Word.Application'; SaveMethod = 'SaveAs' },
+    @{ Name = 'WPS'; ProgId = 'Kwps.Application'; SaveMethod = 'SaveAs2' },
+    @{ Name = 'WPS'; ProgId = 'KWPS.Application'; SaveMethod = 'SaveAs2' }
+)
+$failures = New-Object System.Collections.Generic.List[string]
+foreach ($attempt in $attempts) {
+    $app = $null
+    $doc = $null
+    try {
+        $app = New-Object -ComObject $attempt.ProgId
+        $app.Visible = $false
+        if ($app.PSObject.Properties.Name -contains 'DisplayAlerts') { $app.DisplayAlerts = 0 }
+        $doc = $app.Documents.Open($source, $false, $true)
+        if ($attempt.SaveMethod -eq 'SaveAs2' -and ($doc.PSObject.Methods.Name -contains 'SaveAs2')) {
+            $doc.SaveAs2($target, $format)
+        } else {
+            $doc.SaveAs([ref]$target, [ref]$format)
+        }
+        Write-Output ('OK|' + $attempt.Name + '|' + $attempt.ProgId)
+        exit 0
+    } catch {
+        $failures.Add($attempt.ProgId + ': ' + $_.Exception.Message)
+    } finally {
+        if ($doc -ne $null) { try { $doc.Close([ref]$false) } catch {} }
+        if ($app -ne $null) { try { $app.Quit() } catch {} }
+    }
+}
+Write-Output ('ERROR|' + ($failures -join ' || '))
+exit 1
+`
+
+const excelConvertScript = `
+$ErrorActionPreference = 'Stop'
+$source = $env:PPT_WATERMARK_OFFICE_SOURCE
+$target = $env:PPT_WATERMARK_OFFICE_TARGET
+$format = [int]$env:PPT_WATERMARK_OFFICE_FORMAT
+$attempts = @(
+    @{ Name = 'Excel'; ProgId = 'Excel.Application' },
+    @{ Name = 'WPS'; ProgId = 'Ket.Application' },
+    @{ Name = 'WPS'; ProgId = 'KET.Application' }
+)
+$failures = New-Object System.Collections.Generic.List[string]
+foreach ($attempt in $attempts) {
+    $app = $null
+    $book = $null
+    try {
+        $app = New-Object -ComObject $attempt.ProgId
+        $app.Visible = $false
+        if ($app.PSObject.Properties.Name -contains 'DisplayAlerts') { $app.DisplayAlerts = $false }
+        $book = $app.Workbooks.Open($source, 0, $true)
+        $book.SaveAs($target, $format)
+        Write-Output ('OK|' + $attempt.Name + '|' + $attempt.ProgId)
+        exit 0
+    } catch {
+        $failures.Add($attempt.ProgId + ': ' + $_.Exception.Message)
+    } finally {
+        if ($book -ne $null) { try { $book.Close($false) } catch {} }
+        if ($app -ne $null) { try { $app.Quit() } catch {} }
+    }
+}
+Write-Output ('ERROR|' + ($failures -join ' || '))
+exit 1
+`
+
+const powerpointConvertScript = `
+$ErrorActionPreference = 'Stop'
+$source = $env:PPT_WATERMARK_OFFICE_SOURCE
+$target = $env:PPT_WATERMARK_OFFICE_TARGET
+$format = [int]$env:PPT_WATERMARK_OFFICE_FORMAT
+$attempts = @(
+    @{ Name = 'PowerPoint'; ProgId = 'PowerPoint.Application' },
+    @{ Name = 'WPS'; ProgId = 'Kwpp.Application' },
+    @{ Name = 'WPS'; ProgId = 'KWPP.Application' }
+)
+$failures = New-Object System.Collections.Generic.List[string]
+foreach ($attempt in $attempts) {
+    $app = $null
+    $presentation = $null
+    try {
+        $app = New-Object -ComObject $attempt.ProgId
+        if ($app.PSObject.Properties.Name -contains 'DisplayAlerts') { $app.DisplayAlerts = 1 }
+        $presentation = $app.Presentations.Open($source, $true, $false, $false)
+        $presentation.SaveAs($target, $format)
+        Write-Output ('OK|' + $attempt.Name + '|' + $attempt.ProgId)
+        exit 0
+    } catch {
+        $failures.Add($attempt.ProgId + ': ' + $_.Exception.Message)
+    } finally {
+        if ($presentation -ne $null) { try { $presentation.Close() } catch {} }
+        if ($app -ne $null) { try { $app.Quit() } catch {} }
+    }
+}
+Write-Output ('ERROR|' + ($failures -join ' || '))
+exit 1
+`
+
 const pageMapScript = `
 $ErrorActionPreference = 'Stop'
 $source = $env:PPT_WATERMARK_DOCX_SOURCE
@@ -151,6 +254,114 @@ func NormalizeDOCX(inputPath string) (string, func(), error) {
 		return "", func() {}, fmt.Errorf("Word/WPS compatibility fallback failed: %s", strings.TrimSpace(string(output)))
 	}
 	return targetPath, cleanup, nil
+}
+
+func ConvertDOCToDOCX(inputPath string) (string, func(), error) {
+	tempDir, err := os.MkdirTemp("", "ppt_watermark_doc_")
+	if err != nil {
+		return "", func() {}, err
+	}
+	cleanup := func() { _ = os.RemoveAll(tempDir) }
+	targetPath := filepath.Join(tempDir, filepath.Base(strings.TrimSuffix(inputPath, filepath.Ext(inputPath)))+"_converted.docx")
+	if err := convertWord(inputPath, targetPath, 16); err != nil {
+		cleanup()
+		return "", func() {}, err
+	}
+	return targetPath, cleanup, nil
+}
+
+func ConvertDOCXToDOC(inputPath, outputPath string) error {
+	return convertWord(inputPath, outputPath, 0)
+}
+
+func ConvertXLSToXLSX(inputPath string) (string, func(), error) {
+	tempDir, err := os.MkdirTemp("", "ppt_watermark_xls_")
+	if err != nil {
+		return "", func() {}, err
+	}
+	cleanup := func() { _ = os.RemoveAll(tempDir) }
+	targetPath := filepath.Join(tempDir, filepath.Base(strings.TrimSuffix(inputPath, filepath.Ext(inputPath)))+"_converted.xlsx")
+	if err := convertExcel(inputPath, targetPath, 51); err != nil {
+		cleanup()
+		return "", func() {}, err
+	}
+	return targetPath, cleanup, nil
+}
+
+func ConvertXLSXToXLS(inputPath, outputPath string) error {
+	return convertExcel(inputPath, outputPath, 56)
+}
+
+func ConvertPPTToPPTX(inputPath string) (string, func(), error) {
+	tempDir, err := os.MkdirTemp("", "ppt_watermark_ppt_")
+	if err != nil {
+		return "", func() {}, err
+	}
+	cleanup := func() { _ = os.RemoveAll(tempDir) }
+	targetPath := filepath.Join(tempDir, filepath.Base(strings.TrimSuffix(inputPath, filepath.Ext(inputPath)))+"_converted.pptx")
+	if err := convertPowerPoint(inputPath, targetPath, 24); err != nil {
+		cleanup()
+		return "", func() {}, err
+	}
+	return targetPath, cleanup, nil
+}
+
+func ConvertPPTXToPPT(inputPath, outputPath string) error {
+	return convertPowerPoint(inputPath, outputPath, 1)
+}
+
+func convertWord(inputPath, outputPath string, format int) error {
+	if runtime.GOOS != "windows" {
+		return fmt.Errorf("Word/WPS conversion is only available on Windows")
+	}
+	cmd := exec.Command("powershell", "-NoProfile", "-STA", "-ExecutionPolicy", "Bypass", "-Command", wordConvertScript)
+	applyNoWindow(cmd)
+	cmd.Env = append(os.Environ(),
+		"PPT_WATERMARK_OFFICE_SOURCE="+inputPath,
+		"PPT_WATERMARK_OFFICE_TARGET="+outputPath,
+		"PPT_WATERMARK_OFFICE_FORMAT="+strconv.Itoa(format),
+	)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("Word/WPS conversion failed: %s", strings.TrimSpace(string(output)))
+	}
+	return nil
+}
+
+func convertExcel(inputPath, outputPath string, format int) error {
+	if runtime.GOOS != "windows" {
+		return fmt.Errorf("Excel/WPS conversion is only available on Windows")
+	}
+	cmd := exec.Command("powershell", "-NoProfile", "-STA", "-ExecutionPolicy", "Bypass", "-Command", excelConvertScript)
+	applyNoWindow(cmd)
+	cmd.Env = append(os.Environ(),
+		"PPT_WATERMARK_OFFICE_SOURCE="+inputPath,
+		"PPT_WATERMARK_OFFICE_TARGET="+outputPath,
+		"PPT_WATERMARK_OFFICE_FORMAT="+strconv.Itoa(format),
+	)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("Excel/WPS conversion failed: %s", strings.TrimSpace(string(output)))
+	}
+	return nil
+}
+
+func convertPowerPoint(inputPath, outputPath string, format int) error {
+	if runtime.GOOS != "windows" {
+		return fmt.Errorf("PowerPoint/WPS conversion is only available on Windows")
+	}
+	cmd := exec.Command("powershell", "-NoProfile", "-STA", "-ExecutionPolicy", "Bypass", "-Command", powerpointConvertScript)
+	applyNoWindow(cmd)
+	cmd.Env = append(os.Environ(),
+		"PPT_WATERMARK_OFFICE_SOURCE="+inputPath,
+		"PPT_WATERMARK_OFFICE_TARGET="+outputPath,
+		"PPT_WATERMARK_OFFICE_FORMAT="+strconv.Itoa(format),
+	)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("PowerPoint/WPS conversion failed: %s", strings.TrimSpace(string(output)))
+	}
+	return nil
 }
 
 func ExtractDOCXBodyImagePages(inputPath, markerPrefix string) (int, map[string]int, error) {
